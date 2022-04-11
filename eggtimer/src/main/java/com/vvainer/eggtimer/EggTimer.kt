@@ -5,13 +5,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,7 +41,7 @@ class EggTimer : ComponentActivity() {
 
 @Composable
 fun EggTimerScreen() {
-    Column(modifier = Modifier.fillMaxHeight()) {
+    Column(modifier = Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
         TimerLabel()
         Box(
             modifier = Modifier
@@ -58,18 +61,40 @@ fun EggTimerScreen() {
                 .fillMaxWidth()
                 .weight(0.1f)
         )
-        Box(
-            Modifier
-                .background(Color.Cyan)
-                .fillMaxWidth()
-                .height(100.dp)
-        )
-        Box(
-            Modifier
-                .background(Color.Magenta)
-                .fillMaxWidth()
-                .height(100.dp)
-        )
+        BottomTimerButtons()
+    }
+}
+
+@Composable
+fun BottomTimerButtons() {
+    Column() {
+        Row() {
+            EggTimerButton(title = "Restart", icon = Icons.Default.Refresh) {}
+            Spacer(modifier = Modifier.weight(0.2f))
+            EggTimerButton(title = "Reset", icon = Icons.Default.ArrowBack) {}
+        }
+        EggTimerButton("Pause", Icons.Default.Pause, modifier = Modifier.fillMaxWidth()) {}
+    }
+}
+
+@Composable
+fun EggTimerButton(
+    title: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Button(
+        modifier = modifier
+            .background(Color.White)
+            .padding(8.dp),
+        colors = ButtonDefaults.buttonColors(backgroundColor = Color.White),
+        onClick = {},
+    ) {
+        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, tint = Color.Black, contentDescription = title)
+            Text(title.uppercase(), color = Color.Black, fontSize = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+        }
     }
 }
 
@@ -77,7 +102,8 @@ fun EggTimerScreen() {
 fun TimerLabel() {
     Text(
         "15:23",
-        Modifier.padding(16.dp)
+        Modifier
+            .padding(16.dp)
             .fillMaxWidth(),
         textAlign = TextAlign.Center,
         color = Color.Black,
