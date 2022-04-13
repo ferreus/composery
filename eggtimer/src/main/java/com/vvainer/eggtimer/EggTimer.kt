@@ -20,14 +20,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.*
+import androidx.compose.ui.graphics.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.Paragraph
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -131,6 +134,7 @@ fun TimerLabel() {
     )
 }
 
+/*
 @Preview("Timer Label")
 @Composable
 fun TimerLabelPreview() {
@@ -138,6 +142,7 @@ fun TimerLabelPreview() {
         TimerLabel()
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -147,53 +152,100 @@ fun DefaultPreview() {
     }
 }
 
+ */
+
 
 @Composable
-fun TimerDialer() {
+fun TimerDialer(value: Int) {
+    val textStyle = MaterialTheme.typography.h5
+    val arrowAngle = ((value.toFloat() / 3600f)*(Math.PI*2)).toDegrees()
     val paddingPx : Float = with(LocalDensity.current) { 65.dp.toPx() }
-    Box(modifier = Modifier
+    BoxWithConstraints(modifier = Modifier
         .fillMaxWidth()
         .padding(24.dp)
         .aspectRatio(1f)
         .shadow(8.dp, CircleShape, false)
         .background(Brush.verticalGradient(listOf(gradientTop, gradientBottom)), CircleShape)
         .drawBehind {
-            val radius = (size.width/2f - paddingPx)+25f
-            var angle = 0f.toDouble()
-            val angleStep : Double = ((2*Math.PI)/60f)
-            for (i in 0 until 60) {
-                val r = if (i.rem(5) == 0) radius+25f else radius
+            var radius = (size.width / 2f - paddingPx) + 45f
+            var angle = -Math.PI/2f
+            val ticks = 35
+            val angleStep: Double = ((2 * Math.PI) / ticks)
+            for (i in 0 until ticks) {
+                val r = if (i.rem(5) == 0) radius + 25f else radius
                 val sw = if (i.rem(5) == 0) 5f else 3f
-                val tx = center.x + (r*cos(angle)).toFloat()
-                val ty = center.y + (r*sin(angle)).toFloat()
+                val sx = center.x + ((radius-20f) * cos(angle)).toFloat()
+                val sy = center.y + ((radius-20f) * sin(angle)).toFloat()
+                val tx = center.x + (r * cos(angle)).toFloat()
+                val ty = center.y + (r * sin(angle)).toFloat()
                 angle += angleStep
-                drawLine(Color.DarkGray, center, Offset(tx,ty), strokeWidth = sw)
+                drawLine(Color.DarkGray,Offset(sx,sy), Offset(tx, ty), strokeWidth = sw)
             }
-
+            //radius+=25f
+            angle = -Math.PI/2f
+            val tx = center.x + (radius * cos(angle)).toFloat()
+            val ty = center.y + (radius * sin(angle)).toFloat()
+            rotate(arrowAngle.toFloat()) {
+                val path = Path()
+                path.moveTo(tx, ty)
+                path.lineTo(tx-25f, ty+40f)
+                path.lineTo(tx+25f, ty+40f)
+                path.close()
+                drawPath(path, Color.Black, style = Fill)
+                drawOutline(Outline.Generic(path), Brush.horizontalGradient(listOf(Color.DarkGray, Color.LightGray)), style = Stroke(width = 1f))
+            }
         }
     ) {
+
+        val angles = listOf(0f, 0f, -90f, 180f, 180f, 90f, 0f)
+        for (i in 0..6) {
+            Box(
+                 modifier = Modifier
+                    .fillMaxSize()
+                    .align(Alignment.TopCenter)
+                    .padding(20.dp)
+
+                    .rotate(i*(360f/7f))) {
+
+                Text(
+                    "${i * 5}",
+                    modifier = Modifier.fillMaxWidth().rotate(angles[i]),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
         Box(modifier = Modifier
             .fillMaxWidth()
             .padding(65.dp)
             .aspectRatio(1f)
             .shadow(8.dp, CircleShape, false)
-            .background(Brush.verticalGradient(listOf(gradientTop, gradientBottom)), CircleShape)) {
+            .background(Brush.verticalGradient(listOf(gradientTop, gradientBottom)), CircleShape)
+        ) {
             Box(modifier = Modifier
                 .fillMaxWidth()
                 .padding(10.dp)
                 .aspectRatio(1f)
                 .border(width = 1.5.dp, color = Color(0xFFDFDFDF), CircleShape)) {
-                Image(painter = painterResource(id = R.drawable.kotlin), contentDescription = "kotlin logo", modifier = Modifier.size(64.dp).align(
-                    Alignment.Center))
+                Image(painter = painterResource(id = R.drawable.kotlin),
+                    colorFilter = ColorFilter.tint(Color.Black),
+                    contentDescription = "kotlin logo", modifier = Modifier
+                    .size(48.dp)
+                    .align(
+                        Alignment.Center
+                    ))
             }
         }
     }
+}
+
+private fun Double.toDegrees(): Float {
+    return (this*180f/Math.PI).toFloat()
 }
 
 @Preview(showBackground = true)
 @Composable
 fun TimerDialerPreview() {
     ComposeChallengeCardFlipTheme {
-        TimerDialer()
+        TimerDialer(15*60)
     }
 }
