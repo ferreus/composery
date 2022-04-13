@@ -1,9 +1,11 @@
 package com.vvainer.eggtimer
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -17,17 +19,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vvainer.eggtimer.ui.theme.ComposeChallengeCardFlipTheme
+import kotlin.math.cos
+import kotlin.math.sin
 
 val gradientTop = Color(0xFFF5F5F5)
 val gradientBottom = Color(0xFFE8E8E8)
@@ -141,26 +150,41 @@ fun DefaultPreview() {
 
 @Composable
 fun TimerDialer() {
+    val paddingPx : Float = with(LocalDensity.current) { 65.dp.toPx() }
     Box(modifier = Modifier
         .fillMaxWidth()
         .padding(24.dp)
         .aspectRatio(1f)
-        .shadow(8.dp, CircleShape,false)
-        .background(Brush.verticalGradient(listOf(gradientTop, gradientBottom)),CircleShape)
+        .shadow(8.dp, CircleShape, false)
+        .background(Brush.verticalGradient(listOf(gradientTop, gradientBottom)), CircleShape)
+        .drawBehind {
+            val radius = (size.width/2f - paddingPx)+25f
+            var angle = 0f.toDouble()
+            val angleStep : Double = ((2*Math.PI)/60f)
+            for (i in 0 until 60) {
+                val r = if (i.rem(5) == 0) radius+25f else radius
+                val sw = if (i.rem(5) == 0) 5f else 3f
+                val tx = center.x + (r*cos(angle)).toFloat()
+                val ty = center.y + (r*sin(angle)).toFloat()
+                angle += angleStep
+                drawLine(Color.DarkGray, center, Offset(tx,ty), strokeWidth = sw)
+            }
 
+        }
     ) {
         Box(modifier = Modifier
             .fillMaxWidth()
             .padding(65.dp)
             .aspectRatio(1f)
-            .shadow(8.dp, CircleShape,false)
-            .background(Brush.verticalGradient(listOf(gradientTop, gradientBottom)),CircleShape)) {
+            .shadow(8.dp, CircleShape, false)
+            .background(Brush.verticalGradient(listOf(gradientTop, gradientBottom)), CircleShape)) {
             Box(modifier = Modifier
                 .fillMaxWidth()
                 .padding(10.dp)
                 .aspectRatio(1f)
-                .border(width=1.5.dp, color = Color(0xFFDFDFDF))) {
-
+                .border(width = 1.5.dp, color = Color(0xFFDFDFDF), CircleShape)) {
+                Image(painter = painterResource(id = R.drawable.kotlin), contentDescription = "kotlin logo", modifier = Modifier.size(64.dp).align(
+                    Alignment.Center))
             }
         }
     }
