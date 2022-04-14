@@ -1,15 +1,12 @@
 package com.vvainer.eggtimer
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.*
@@ -20,29 +17,26 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.*
-import androidx.compose.ui.graphics.rotate
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.Paragraph
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vvainer.eggtimer.ui.theme.ComposeChallengeCardFlipTheme
-import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -139,7 +133,7 @@ fun TimerLabel(currentTimeInSeconds: Int) {
             .fillMaxWidth(),
         textAlign = TextAlign.Center,
         color = Color.Black,
-        letterSpacing = 10.sp,
+        letterSpacing = 3.sp,
         style = MaterialTheme.typography.h1
     )
 }
@@ -167,9 +161,9 @@ fun DefaultPreview() {
 
 @Composable
 fun TimerDialer(currentTimeInSeconds: Int, modifier : Modifier = Modifier) {
-    val maxTimeInSeconds = 30f*60f
+    val maxTimeInSeconds = 36f*60f
     val pct = currentTimeInSeconds / maxTimeInSeconds
-    val arrowAngle = (pct*(Math.PI*2-Math.PI*2f/7f)).toDegrees()
+    val arrowAngle = (pct*(Math.PI*2).toDegrees())
     val paddingPx : Float = with(LocalDensity.current) { 65.dp.toPx() }
     BoxWithConstraints(modifier = modifier
         .fillMaxWidth()
@@ -180,7 +174,7 @@ fun TimerDialer(currentTimeInSeconds: Int, modifier : Modifier = Modifier) {
         .drawBehind {
             val radius = (size.width / 2f - paddingPx) + 45f
             var angle = -Math.PI / 2f
-            val ticks = 35
+            val ticks = 36
             val angleStep: Double = ((2 * Math.PI) / ticks)
             for (i in 0 until ticks) {
                 val r = if (i.rem(5) == 0) radius + 25f else radius
@@ -213,13 +207,14 @@ fun TimerDialer(currentTimeInSeconds: Int, modifier : Modifier = Modifier) {
 
         val angles = listOf(0f, 0f, -90f, 180f, 180f, 90f, 0f)
         for (i in 0..6) {
+            val angle = (i*5) * (360f / 36f)
             Box(
                  modifier = Modifier
                      .fillMaxSize()
                      .align(Alignment.TopCenter)
                      .padding(20.dp)
 
-                     .rotate(i * (360f / 7f))) {
+                     .rotate(angle)) {
 
                 Text(
                     "${i * 5}",
@@ -259,41 +254,60 @@ fun TimerDialer(currentTimeInSeconds: Int, modifier : Modifier = Modifier) {
 @Composable
 fun TimerDialerInteractive(currentTimeInSeconds: Int, modifier : Modifier = Modifier, onTimeChanged: (Int) -> Unit = {}) {
     var currentTime by remember { mutableStateOf(currentTimeInSeconds)}
+    val maxTimeInSeconds = 36*60
     var dragPoint = Offset(0f, 0f)
+    var startAngle = 0f
+    var currentTimeAsAngle = (currentTimeInSeconds / maxTimeInSeconds.toFloat())*(Math.PI.toFloat()*2f)
     TimerDialer(currentTimeInSeconds = currentTime,
         modifier = modifier.pointerInput(Unit) {
             detectDragGestures(onDragStart = {
                 dragPoint = it
+                startAngle = getRadialAngle(it, size)
             }, onDragEnd = {
 
             }) { change, dragAmount ->
+                change.consumeAllChanges()
                 dragPoint += dragAmount
-                currentTime = getCurrentTime(dragPoint, size)
-                Log.e("DRAG","X:${dragPoint.x}, Y:${dragPoint.y} size:${size.width}, ${size.height}")
+                val curAngle = getRadialAngle(dragPoint, size)
+                var deltaAngle = startAngle - curAngle
+                if (deltaAngle < 0f) {
+                    deltaAngle = (deltaAngle+Math.PI.toFloat()*2f)
+                }
+                if (deltaAngle > Math.PI) {
+                    deltaAngle = Math.PI.toFloat()*2f - deltaAngle
+                }
+                if ((curAngle - startAngle)<0f) {
+                    deltaAngle = -deltaAngle
+                }
+                currentTimeAsAngle += deltaAngle
+                startAngle = curAngle
+                currentTime = ((currentTimeAsAngle / (Math.PI.toFloat()*2f))*maxTimeInSeconds).toInt()
+                if (currentTime < 0) {
+                    currentTime += maxTimeInSeconds
+                }
+                if (currentTime > maxTimeInSeconds) {
+                    currentTime -= maxTimeInSeconds
+                }
                 onTimeChanged(currentTime)
             }
         })
 }
 
-fun getCurrentTime(dragCenter: Offset, size: IntSize): Int {
+fun getRadialAngle(dragCenter: Offset, size: IntSize): Float {
     val radius = size.width/2f
     val pos  = Offset(dragCenter.x - radius, dragCenter.y - radius)
     val (dx,dy) = Offset(0f,0f) - pos
-    var theta = atan2(dy,dx)
-    while (theta<0f) {
-        theta+= Math.PI.toFloat()*2f
+    var angle = atan2(dy,dx) - Math.PI.toFloat()/2f
+    if (angle < 0) {
+        angle += (Math.PI*2f).toFloat()
     }
-    while (theta>Math.PI*2) {
-        theta -= Math.PI.toFloat()*2f
-    }
-    theta -= Math.PI.toFloat()/2f
-    val pct = theta / (Math.PI*2f)
-    val seconds = pct * (45*60)
-    Log.e("DRAG","pos:${pos.x},${pos.y} -> dx,dy:$dx,$dy => theta:$theta, pct:$pct, seconds:$seconds")
-    return seconds.toInt().coerceIn(0,35*60)
+    return angle
 }
 
 private fun Double.toDegrees(): Float {
+    return (this*180f/Math.PI).toFloat()
+}
+private fun Float.toDegrees(): Float {
     return (this*180f/Math.PI).toFloat()
 }
 
