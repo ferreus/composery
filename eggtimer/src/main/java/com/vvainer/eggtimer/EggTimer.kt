@@ -1,8 +1,11 @@
 package com.vvainer.eggtimer
 
 import android.os.Bundle
+import android.os.CountDownTimer
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,7 +39,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.vvainer.eggtimer.ui.theme.ComposeChallengeCardFlipTheme
+import kotlinx.coroutines.launch
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -44,7 +51,85 @@ import kotlin.math.sin
 val gradientTop = Color(0xFFF5F5F5)
 val gradientBottom = Color(0xFFE8E8E8)
 
+enum class TimerState {
+    Setup, Running, Paused
+}
+
+class TimerViewModel() : ViewModel() {
+    var timer : CountDownTimer? = null
+
+    var timerSetTime by mutableStateOf(0)
+        private set
+    var timerCurTime by mutableStateOf(0)
+        private set
+
+    var state by mutableStateOf(TimerState.Setup)
+        private set
+
+
+
+    fun setTime(timeInSeconds: Int) {
+        timerSetTime = timeInSeconds
+        timerCurTime = timeInSeconds
+    }
+    fun startTimer() {
+        if (timerSetTime != 0) {
+            state = TimerState.Running
+            timer = object : CountDownTimer((timerCurTime * 1000).toLong(),1000) {
+                override fun onTick(millisUntilFinished: Long) {
+                    timerCurTime = (millisUntilFinished / 1000).toInt()
+                }
+
+                override fun onFinish() {
+                    state  = TimerState.Setup
+                }
+
+            }
+            timer?.start()
+        }
+    }
+    fun pauseTimer() {
+        if (state == TimerState.Paused) {
+            startTimer()
+        } else {
+            state = TimerState.Paused
+            timer?.cancel()
+            timer = null
+        }
+    }
+
+    fun resetTimer() {
+        timer?.cancel()
+        timer = null
+        timerSetTime = 0
+        timerCurTime = 0
+        state = TimerState.Setup
+    }
+
+    fun restartTimer() {
+        if (timerSetTime != 0) {
+            pauseTimer()
+            timerCurTime = timerSetTime
+            startTimer()
+        }
+    }
+
+}
+
+
+@Composable
+fun Render(viewModel: TimerViewModel) {
+    Column {
+        Button(onClick = { viewModel.setTime(viewModel.timerCurTime+5) }) {
+            Text(text = "Click Me!")
+        }
+        Text(text = "Compose State: ${viewModel.timerCurTime}")
+    }
+}
+
 class EggTimer : ComponentActivity() {
+    private val model: TimerViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -54,30 +139,34 @@ class EggTimer : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    EggTimerScreen()
+                    EggTimerScreen(model)
                 }
             }
         }
     }
 }
 
+
 @Composable
-fun EggTimerScreen() {
-    var currentTimeInSeconds by remember {
-        mutableStateOf(0)
-    }
+fun EggTimerScreen(model: TimerViewModel) {
     Column(modifier = Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-        TimerLabel(currentTimeInSeconds)
+        TimerLabel(model.timerCurTime)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
                 .padding(30.dp)
         ) {
-            TimerDialerInteractive(0,
-                Modifier.fillMaxSize()
+            TimerDialerInteractive(model.timerCurTime,
+                Modifier.fillMaxSize(),
+                onTimeChanged = {
+                    Log.e("VIEWMODEL","Time set to $it")
+                    model.setTime(it)
+                }
             ) {
-                currentTimeInSeconds = it
+                Log.e("VIEWMODEL","Time set to $it, START")
+                model.setTime(it)
+                model.startTimer()
             }
         }
         Spacer(
@@ -85,19 +174,29 @@ fun EggTimerScreen() {
                 .fillMaxWidth()
                 .weight(0.1f)
         )
-        BottomTimerButtons()
+        BottomTimerButtons(
+            onRestart = {
+                model.restartTimer()
+            },
+            onReset = {
+                model.resetTimer()
+            },
+            onPause = {
+                model.pauseTimer()
+            }
+        )
     }
 }
 
 @Composable
-fun BottomTimerButtons() {
+fun BottomTimerButtons(onRestart: () -> Unit, onReset : () -> Unit, onPause: () -> Unit) {
     Column() {
         Row() {
-            EggTimerButton(title = "Restart", icon = Icons.Default.Refresh) {}
+            EggTimerButton(title = "Restart", icon = Icons.Default.Refresh, onClick = onRestart)
             Spacer(modifier = Modifier.weight(0.2f))
-            EggTimerButton(title = "Reset", icon = Icons.Default.ArrowBack) {}
+            EggTimerButton(title = "Reset", icon = Icons.Default.ArrowBack, onClick = onReset)
         }
-        EggTimerButton("Pause", Icons.Default.Pause, modifier = Modifier.fillMaxWidth()) {}
+        EggTimerButton("Pause", Icons.Default.Pause, modifier = Modifier.fillMaxWidth(), onClick = onPause)
     }
 }
 
@@ -113,7 +212,7 @@ fun EggTimerButton(
             .background(Color.White)
             .padding(8.dp),
         colors = ButtonDefaults.buttonColors(backgroundColor = Color.White),
-        onClick = {},
+        onClick = onClick,
     ) {
         Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, tint = Color.Black, contentDescription = title)
@@ -151,8 +250,9 @@ fun TimerLabelPreview() {
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
+    val model: TimerViewModel = TimerViewModel()
     ComposeChallengeCardFlipTheme {
-        EggTimerScreen()
+        EggTimerScreen(model)
     }
 }
 
@@ -252,8 +352,9 @@ fun TimerDialer(currentTimeInSeconds: Int, modifier : Modifier = Modifier) {
 
 
 @Composable
-fun TimerDialerInteractive(currentTimeInSeconds: Int, modifier : Modifier = Modifier, onTimeChanged: (Int) -> Unit = {}) {
-    var currentTime by remember { mutableStateOf(currentTimeInSeconds)}
+fun TimerDialerInteractive(currentTimeInSeconds: Int, modifier : Modifier = Modifier, onTimeChanged: (Int) -> Unit = {}, onTimeSet: (Int) -> Unit ) {
+    //var currentTime by remember { mutableStateOf(currentTimeInSeconds)}
+    var currentTime = currentTimeInSeconds
     val maxTimeInSeconds = 36*60
     var dragPoint = Offset(0f, 0f)
     var startAngle = 0f
@@ -264,7 +365,7 @@ fun TimerDialerInteractive(currentTimeInSeconds: Int, modifier : Modifier = Modi
                 dragPoint = it
                 startAngle = getRadialAngle(it, size)
             }, onDragEnd = {
-
+                onTimeSet(currentTime)
             }) { change, dragAmount ->
                 change.consumeAllChanges()
                 dragPoint += dragAmount
