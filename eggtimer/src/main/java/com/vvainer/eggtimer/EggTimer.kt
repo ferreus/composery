@@ -48,8 +48,8 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
-val gradientTop = Color(0xFFF5F5F5)
-val gradientBottom = Color(0xFFE8E8E8)
+val gradientTop = Color(0xF5F5F5FF)
+val gradientBottom = Color(0xE8E8E8FF)
 
 enum class TimerState {
     Setup, Running, Paused
@@ -117,15 +117,6 @@ class TimerViewModel() : ViewModel() {
 }
 
 
-@Composable
-fun Render(viewModel: TimerViewModel) {
-    Column {
-        Button(onClick = { viewModel.setTime(viewModel.timerCurTime+5) }) {
-            Text(text = "Click Me!")
-        }
-        Text(text = "Compose State: ${viewModel.timerCurTime}")
-    }
-}
 
 class EggTimer : ComponentActivity() {
     private val model: TimerViewModel by viewModels()
@@ -158,7 +149,8 @@ fun EggTimerScreen(model: TimerViewModel) {
                 .padding(30.dp)
         ) {
             TimerDialerInteractive(model.timerCurTime,
-                Modifier.fillMaxSize(),
+                enabled = model.state == TimerState.Setup,
+                modifier = Modifier.fillMaxSize(),
                 onTimeChanged = {
                     Log.e("VIEWMODEL","Time set to $it")
                     model.setTime(it)
@@ -174,29 +166,31 @@ fun EggTimerScreen(model: TimerViewModel) {
                 .fillMaxWidth()
                 .weight(0.1f)
         )
-        BottomTimerButtons(
-            onRestart = {
-                model.restartTimer()
-            },
-            onReset = {
-                model.resetTimer()
-            },
-            onPause = {
-                model.pauseTimer()
-            }
-        )
+        if (model.state != TimerState.Setup) {
+            BottomTimerButtons(state = model.state,
+                onRestart = {
+                    model.restartTimer()
+                },
+                onReset = {
+                    model.resetTimer()
+                },
+                onPause = {
+                    model.pauseTimer()
+                }
+            )
+        }
     }
 }
 
 @Composable
-fun BottomTimerButtons(onRestart: () -> Unit, onReset : () -> Unit, onPause: () -> Unit) {
+fun BottomTimerButtons(state:  TimerState, onRestart: () -> Unit, onReset : () -> Unit, onPause: () -> Unit) {
     Column() {
         Row() {
             EggTimerButton(title = "Restart", icon = Icons.Default.Refresh, onClick = onRestart)
             Spacer(modifier = Modifier.weight(0.2f))
             EggTimerButton(title = "Reset", icon = Icons.Default.ArrowBack, onClick = onReset)
         }
-        EggTimerButton("Pause", Icons.Default.Pause, modifier = Modifier.fillMaxWidth(), onClick = onPause)
+        EggTimerButton(if (state != TimerState.Paused) "Pause" else "Resume", Icons.Default.Pause, modifier = Modifier.fillMaxWidth(), onClick = onPause)
     }
 }
 
@@ -352,7 +346,7 @@ fun TimerDialer(currentTimeInSeconds: Int, modifier : Modifier = Modifier) {
 
 
 @Composable
-fun TimerDialerInteractive(currentTimeInSeconds: Int, modifier : Modifier = Modifier, onTimeChanged: (Int) -> Unit = {}, onTimeSet: (Int) -> Unit ) {
+fun TimerDialerInteractive(currentTimeInSeconds: Int, modifier : Modifier = Modifier,enabled : Boolean = true, onTimeChanged: (Int) -> Unit = {}, onTimeSet: (Int) -> Unit ) {
     //var currentTime by remember { mutableStateOf(currentTimeInSeconds)}
     var currentTime = currentTimeInSeconds
     val maxTimeInSeconds = 36*60
@@ -360,12 +354,12 @@ fun TimerDialerInteractive(currentTimeInSeconds: Int, modifier : Modifier = Modi
     var startAngle = 0f
     var currentTimeAsAngle = (currentTimeInSeconds / maxTimeInSeconds.toFloat())*(Math.PI.toFloat()*2f)
     TimerDialer(currentTimeInSeconds = currentTime,
-        modifier = modifier.pointerInput(Unit) {
+        modifier = if (!enabled) Modifier else modifier.pointerInput(Unit) {
             detectDragGestures(onDragStart = {
                 dragPoint = it
                 startAngle = getRadialAngle(it, size)
             }, onDragEnd = {
-                onTimeSet(currentTime)
+                    onTimeSet(currentTime)
             }) { change, dragAmount ->
                 change.consumeAllChanges()
                 dragPoint += dragAmount
